@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: dbweb-glory
+    runtime: python
+    plan: starter            # a paid always-on plan is needed; free plans sleep and the bots would stop
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      - key: BRAND_NAME
+        value: Dbweb Glory
+      - key: DEV_EMAIL
+        value: lumenomore@hotmail.com
+      - key: UPI_ID
+        sync: false
+      - key: UPI_NAME
+        value: Dbweb Glory
+      - key: BASIC_PRICE_INR
+        value: "150"
+      - key: PREMIUM_PRICE_INR
+        value: "1700"
+      - key: ADMIN_USERNAME
+        value: dbweb_admin
+      - key: ADMIN_PASSWORD
+        sync: false
