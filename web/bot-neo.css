@@ -1,0 +1,30 @@
+/* Neumorphic skin for the bot panel (loads after the page's own styles) */
+@import url("/neo.css");
+:root { --bg-deep: var(--bg); --card-surface: var(--bg); --card-border: transparent; --accent-cyan: var(--accent); --success-glow: var(--ok); --text-main: var(--text); --text-sub: var(--muted); }
+body { background: var(--bg) !important; background-image: none !important; color: var(--text) !important; }
+.top-navbar, .premium-card { background: var(--bg) !important; backdrop-filter: none !important; border: 0 !important; box-shadow: var(--raise) !important; }
+.premium-card:hover { border: 0 !important; }
+.nav-title, .guild-info h3 { color: var(--text) !important; }
+.card-title { color: var(--accent) !important; }
+.card-header-flex { border-bottom: 0 !important; }
+.top-btn, .clear-logs-btn, .action-btn, .modal-btn { background: var(--bg) !important; border: 0 !important; color: var(--accent) !important; box-shadow: var(--raise-sm) !important; border-radius: 12px !important; }
+.top-btn:active, .clear-logs-btn:active, .action-btn:active, .modal-btn:active { box-shadow: var(--inset-sm) !important; }
+.top-btn.stop-active, .clear-logs-btn { color: var(--bad) !important; }
+.live-pill { background: var(--bg) !important; border: 0 !important; color: var(--ok) !important; box-shadow: var(--inset-sm) !important; }
+.session-box, .metric-card, .terminal-logs, .tag-region { background: var(--bg) !important; border: 0 !important; box-shadow: var(--inset) !important; }
+.metric-card strong { color: var(--gold) !important; }
+.progress-track { background: var(--bg) !important; box-shadow: var(--inset-sm) !important; }
+.progress-bar { background: linear-gradient(90deg, var(--accent), var(--accent-2)) !important; box-shadow: none !important; }
+.guild-avatar { background: var(--bg) !important; border: 0 !important; color: var(--accent); box-shadow: var(--raise-sm) !important; }
+.tag-lvl { background: var(--bg) !important; color: var(--gold) !important; box-shadow: var(--inset-sm) !important; }
+.modal-overlay { background: rgba(20,24,40,.45) !important; }
+.modal-card { background: var(--bg) !important; border: 0 !important; box-shadow: var(--raise) !important; color: var(--text) !important; }
+.modal-card h3 { color: var(--text) !important; }
+.form-input { background: var(--bg) !important; border: 0 !important; color: var(--text) !important; box-shadow: var(--inset-sm) !important; border-radius: 12px !important; }
+.form-group label { color: var(--muted) !important; }
+.btn-cancel { color: var(--muted) !important; } .btn-submit { color: var(--ok) !important; }
+.terminal-logs { color: var(--text) !important; }
+
+.top-navbar { flex-wrap: wrap; gap: 10px; }
+.nav-actions { flex-wrap: wrap; justify-content: flex-end; }
+.nav-title { font-size: 15px !important; font-weight: 800 !important; }

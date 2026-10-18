@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard — {brand}</title>
+<link rel="stylesheet" href="/neo.css">
+</head>
+<body>
+<header class="topbar"><div class="wrap">
+  <a class="brand" href="/"><span class="logo">D</span><span data-brand>Dbweb Glory</span></a>
+  <div class="row" style="gap:10px">
+    <span class="chip acc" title="Basic credits">B <span id="cb">–</span></span>
+    <span class="chip gold" title="Premium credits">P <span id="cp">–</span></span>
+    <button class="btn sm" onclick="logout()">Log out</button>
+  </div>
+</div></header>
+
+<main class="wrap">
+  <div class="tabs" id="tabs">
+    <button class="btn on" data-tab="launch">Launch</button>
+    <button class="btn" data-tab="buy">Buy credits</button>
+    <button class="btn" data-tab="coupons">Coupons</button>
+    <button class="btn" data-tab="account">Account</button>
+  </div>
+
+  <!-- LAUNCH -->
+  <section id="t-launch" class="tab">
+    <div class="neo stack" style="max-width:520px">
+      <h2>Launch your guild</h2>
+      <p class="muted small">Costs 1 credit. The bot accounts will join your guild and start playing.</p>
+      <div><label for="clan">Guild ID</label><input class="input" id="clan" inputmode="numeric" placeholder="e.g. 3012345678"></div>
+      <div><label for="region">Region</label>
+        <select class="input" id="region">
+          <optgroup label="Basic credit">
+            <option>IND</option><option>BD</option><option>SG</option><option>ID</option><option>TH</option><option>VN</option><option>PK</option><option>RU</option><option>TW</option><option>CIS</option>
+          </optgroup>
+          <optgroup label="Premium credit">
+            <option>ME</option><option>BR</option><option>US</option><option>NA</option><option>SAC</option>
+          </optgroup>
+        </select></div>
+      <p class="small muted" id="cost"></p>
+      <button class="btn primary block" id="launch">Launch</button>
+    </div>
+  </section>
+
+  <!-- BUY -->
+  <section id="t-buy" class="tab hide">
+    <div class="grid g2">
+      <div class="neo stack">
+        <h2>Buy credits (UPI)</h2>
+        <div class="neo-in stack">
+          <div class="row between"><div><b>Basic credits</b><div class="small muted"><span data-basic-price></span> each</div></div>
+            <div class="stepper"><button class="btn sm" data-step="b" data-d="-1">−</button><input class="input" id="qb" value="1" inputmode="numeric"><button class="btn sm" data-step="b" data-d="1">+</button></div></div>
+          <div class="row between"><div><b style="color:var(--gold)">Premium credits</b><div class="small muted"><span data-premium-price></span> each</div></div>
+            <div class="stepper"><button class="btn sm" data-step="p" data-d="-1">−</button><input class="input" id="qp" value="0" inputmode="numeric"><button class="btn sm" data-step="p" data-d="1">+</button></div></div>
+        </div>
+        <div class="row between"><span class="muted">Total</span><b style="font-size:22px" id="total">₹0</b></div>
+        <button class="btn primary block" id="pay">Pay with UPI</button>
+        <p class="small muted" id="upi-off"></p>
+      </div>
+      <div class="neo stack">
+        <h2>Your orders</h2>
+        <div id="orders" class="list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COUPONS -->
+  <section id="t-coupons" class="tab hide">
+    <div class="grid g2">
+      <div class="neo stack">
+        <h2>Redeem a coupon</h2>
+        <input class="input mono" id="rcode" placeholder="XXXX-XXXX-XXXX" autocapitalize="characters">
+        <button class="btn primary block" id="redeem">Redeem</button>
+        <div class="divider"></div>
+        <h2>Make a coupon</h2>
+        <p class="small muted">Turns some of your credits into a code you can give to someone.</p>
+        <div class="row" style="flex-wrap:nowrap"><div style="flex:1"><label>Basic</label><input class="input" id="cb2" value="0" inputmode="numeric"></div><div style="flex:1"><label>Premium</label><input class="input" id="cp2" value="0" inputmode="numeric"></div></div>
+        <button class="btn block" id="mk">Create coupon</button>
+      </div>
+      <div class="neo stack">
+        <h2>Your coupons</h2><div id="mine" class="list"></div>
+        <h3 style="margin-top:8px">Redeemed by you</h3><div id="redeemed" class="list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACCOUNT -->
+  <section id="t-account" class="tab hide">
+    <div class="neo stack" style="max-width:520px">
+      <h2>Account</h2>
+      <p class="muted">Signed in as <b id="uname"></b></p>
+      <div><label>Current password</label><input class="input" id="cur" type="password" autocomplete="current-password"></div>
+      <div><label>New password</label><input class="input" id="new" type="password" autocomplete="new-password"></div>
+      <button class="btn block" id="chg">Change password</button>
+      <div class="divider"></div>
+      <p class="small muted">Need help? Email <a data-email href="mailto:lumenomore@hotmail.com">lumenomore@hotmail.com</a></p>
+    </div>
+  </section>
+</main>
+<footer><div class="wrap"><span data-brand>Dbweb Glory</span> · <a data-email href="mailto:lumenomore@hotmail.com">lumenomore@hotmail.com</a></div></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/shared.js"></script>
+<script>
+const PREMIUM = ['ME', 'BR', 'US', 'NA', 'SAC'];
+let me;
+function setCredits(b, p) { $('#cb').textContent = b; $('#cp').textContent = p; me.basic_credits = b; me.premium_credits = p; updateCost(); }
+function showTab(t) {
+  $$('.tab').forEach(s => s.classList.add('hide')); $('#t-' + t).classList.remove('hide');
+  $$('#tabs .btn').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  if (t === 'buy') loadOrders(); if (t === 'coupons') loadCoupons();
+  history.replaceState(null, '', '#' + t);
+}
+$$('#tabs .btn').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+
+function updateCost() {
+  const r = $('#region').value, prem = PREMIUM.includes(r);
+  const have = prem ? me.premium_credits : me.basic_credits;
+  $('#cost').innerHTML = 'Uses <b>1 ' + (prem ? 'premium' : 'basic') + '</b> credit · you have <b>' + have + '</b>';
+}
+$('#region').onchange = updateCost;
+
+$('#launch').onclick = async () => {
+  const clan_id = $('#clan').value.trim(), region = $('#region').value;
+  if (!/^\d+$/.test(clan_id)) return toast('Enter a numeric guild ID', 'bad');
+  const btn = $('#launch'); btn.disabled = true;
+  try {
+    const r = await post('/api/client/launch', { clan_id, region });
+    const key = r.credit_type === 'premium' ? 'premium_credits' : 'basic_credits';
+    me[key] = r.remaining_credits; setCredits(me.basic_credits, me.premium_credits);
+    toast(r.message || 'Launched!', 'ok');
+  } catch (e) { toast(e.message, 'bad'); }
+  btn.disabled = false;
+};
+
+/* ---- buy ---- */
+const qty = id => Math.max(0, Math.min(1000, parseInt($(id).value) || 0));
+function updTotal() { $('#total').textContent = inr(qty('#qb') * CONFIG.basic_price + qty('#qp') * CONFIG.premium_price); }
+$$('[data-step]').forEach(b => b.onclick = () => {
+  const i = b.dataset.step === 'b' ? '#qb' : '#qp'; $(i).value = Math.max(0, qty(i) + parseInt(b.dataset.d)); updTotal();
+});
+['#qb', '#qp'].forEach(i => $(i).addEventListener('input', updTotal));
+
+$('#pay').onclick = async () => {
+  const basic_credits = qty('#qb'), premium_credits = qty('#qp');
+  if (basic_credits + premium_credits < 1) return toast('Choose at least 1 credit', 'bad');
+  try { const r = await post('/api/payments/create', { basic_credits, premium_credits }); openPay(r.order); loadOrders(); }
+  catch (e) { toast(e.message, 'bad'); }
+};
+
+function openPay(o) {
+  const m = modal(`
+    <div class="stack">
+      <div class="row between"><h2>Pay ${inr(o.amount)}</h2><button class="btn sm" id="x">Close</button></div>
+      <p class="small muted">Order <b class="mono">${esc(o.order_id)}</b> · ${o.basic_credits} basic + ${o.premium_credits} premium</p>
+      <div class="qr"><div id="qrbox"></div></div>
+      <a class="btn primary block" href="${esc(o.upi_link)}">Open UPI app</a>
+      <div class="neo-in row between"><div><div class="small muted">UPI ID</div><b class="mono">${esc(o.upi_id)}</b></div><button class="btn sm" id="cp-upi">Copy</button></div>
+      <p class="small muted">Pay exactly <b>${inr(o.amount)}</b>, then enter the 12-digit UTR / transaction ID from your UPI app.</p>
+      <input class="input mono" id="utr" inputmode="numeric" maxlength="14" placeholder="12-digit UTR" value="${esc(o.utr || '')}">
+      <button class="btn ok block" id="sub">I've paid — submit</button>
+    </div>`);
+  try { new QRCode($('#qrbox', m), { text: o.upi_link, width: 168, height: 168 }); } catch (e) { $('.qr', m).classList.add('hide'); }
+  $('#x', m).onclick = () => m.remove();
+  $('#cp-upi', m).onclick = () => copyText(o.upi_id);
+  $('#sub', m).onclick = async () => {
+    try { await post('/api/payments/submit', { order_id: o.order_id, utr: $('#utr', m).value });
+      toast('Submitted — credits are added once confirmed', 'ok'); m.remove(); loadOrders(); }
+    catch (e) { toast(e.message, 'bad'); }
+  };
+}
+
+async function loadOrders() {
+  const rows = await api('/api/payments/mine').catch(() => []);
+  window._orders = rows;
+  $('#orders').innerHTML = rows.length ? rows.map(o => `
+    <div class="neo sm item">
+      <div><b class="mono">${esc(o.order_id)}</b> ${badge(o.status)}<div class="small muted">${o.basic_credits}B + ${o.premium_credits}P · ${inr(o.amount)} · ${fmtDate(o.created_at)}${o.note ? ' · ' + esc(o.note) : ''}</div></div>
+      <div class="row">${o.status === 'created' || o.status === 'submitted' ? `<button class="btn sm" data-o="${esc(o.order_id)}" data-a="open">${o.status === 'created' ? 'Pay' : 'View'}</button>` : ''}
+      ${o.status === 'created' ? `<button class="btn sm bad" data-o="${esc(o.order_id)}" data-a="cancel">Cancel</button>` : ''}</div>
+    </div>`).join('') : '<div class="empty">No orders yet</div>';
+  $$('#orders [data-o]').forEach(b => b.onclick = async () => {
+    const o = rows.find(x => x.order_id === b.dataset.o);
+    if (b.dataset.a === 'open') openPay(o);
+    else { try { await post('/api/payments/cancel', { order_id: o.order_id }); loadOrders(); } catch (e) { toast(e.message, 'bad'); } }
+  });
+  const me2 = await api('/api/me').catch(() => null); if (me2) setCredits(me2.basic_credits, me2.premium_credits);
+}
+
+/* ---- coupons ---- */
+async function loadCoupons() {
+  const [mine, red] = await Promise.all([api('/api/coupons/mine').catch(() => []), api('/api/coupons/redeemed').catch(() => [])]);
+  $('#mine').innerHTML = mine.length ? mine.map(c => `
+    <div class="neo sm item"><div><b class="mono">${esc(c.code)}</b> ${badge(c.status)}<div class="small muted">${c.basic_credits}B + ${c.premium_credits}P</div></div>
+    <div class="row"><button class="btn sm" data-copy="${esc(c.code)}">Copy</button>${c.status === 'active' ? `<button class="btn sm bad" data-cancel="${esc(c.code)}">Cancel</button>` : ''}</div></div>`).join('') : '<div class="empty">None yet</div>';
+  $('#redeemed').innerHTML = red.length ? red.map(c => `<div class="neo sm item"><b class="mono">${esc(c.code)}</b><span class="small muted">+${c.basic_credits}B +${c.premium_credits}P</span></div>`).join('') : '<div class="empty">None yet</div>';
+  $$('#mine [data-copy]').forEach(b => b.onclick = () => copyText(b.dataset.copy));
+  $$('#mine [data-cancel]').forEach(b => b.onclick = async () => {
+    try { const r = await post('/api/coupons/cancel', { code: b.dataset.cancel }); setCredits(r.new_basic, r.new_premium); loadCoupons(); } catch (e) { toast(e.message, 'bad'); }
+  });
+}
+$('#redeem').onclick = async () => {
+  try { const r = await post('/api/coupons/redeem', { code: $('#rcode').value }); setCredits(r.new_basic, r.new_premium); toast(`+${r.basic_credits} basic, +${r.premium_credits} premium`, 'ok'); $('#rcode').value = ''; loadCoupons(); }
+  catch (e) { toast(e.message, 'bad'); }
+};
+$('#mk').onclick = async () => {
+  try { const r = await post('/api/coupons/create', { basic_credits: parseInt($('#cb2').value) || 0, premium_credits: parseInt($('#cp2').value) || 0 });
+    toast('Coupon ' + r.coupon.code, 'ok'); const m = await api('/api/me'); setCredits(m.basic_credits, m.premium_credits); loadCoupons(); }
+  catch (e) { toast(e.message, 'bad'); }
+};
+
+/* ---- account ---- */
+$('#chg').onclick = async () => {
+  try { await post('/api/auth/change-password', { current_password: $('#cur').value, new_password: $('#new').value }); toast('Password changed', 'ok'); $('#cur').value = $('#new').value = ''; }
+  catch (e) { toast(e.message, 'bad'); }
+};
+
+(async () => {
+  await loadConfig();
+  me = await requireUser(); if (!me) return;
+  $('#uname').textContent = me.display_name || me.username;
+  setCredits(me.basic_credits, me.premium_credits);
+  if (!CONFIG.upi_enabled) { $('#pay').disabled = true; $('#upi-off').textContent = 'Payments are not set up yet. Email ' + CONFIG.dev_email; }
+  updTotal();
+  const h = location.hash.slice(1); showTab(['launch', 'buy', 'coupons', 'account'].includes(h) ? h : 'launch');
+})();
+</script>
+</body>
+</html>

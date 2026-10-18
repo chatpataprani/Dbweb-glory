@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Log in — {brand}</title>
+<link rel="stylesheet" href="/neo.css">
+</head>
+<body>
+<header class="topbar"><div class="wrap">
+  <a class="brand" href="/"><span class="logo">D</span><span data-brand>Dbweb Glory</span></a>
+  <a class="btn sm" href="/">Home</a>
+</div></header>
+
+<main class="wrap narrow" style="padding-top:24px">
+  <div class="neo stack">
+    <div class="row" style="justify-content:center;gap:14px">
+      <button class="btn on" id="tab-login" type="button">Log in</button>
+      <button class="btn" id="tab-signup" type="button">Sign up</button>
+    </div>
+    <p id="msg" class="small muted" style="text-align:center"></p>
+    <form id="form" class="stack" autocomplete="on">
+      <div><label for="u">Username</label><input class="input" id="u" autocomplete="username" autocapitalize="none" required minlength="3" maxlength="20" placeholder="your_name"></div>
+      <div><label for="p">Password</label><input class="input" id="p" type="password" autocomplete="current-password" required minlength="6" placeholder="At least 6 characters"></div>
+      <div id="p2wrap" class="hide"><label for="p2">Confirm password</label><input class="input" id="p2" type="password" autocomplete="new-password" placeholder="Repeat password"></div>
+      <button class="btn primary block" id="go" type="submit">Log in</button>
+    </form>
+    <p class="muted small" style="text-align:center">Problems? <a data-email href="mailto:lumenomore@hotmail.com">lumenomore@hotmail.com</a></p>
+  </div>
+</main>
+<script src="/shared.js"></script>
+<script>
+loadConfig();
+let mode = 'login';
+function setMode(m) {
+  mode = m;
+  $('#tab-login').classList.toggle('on', m === 'login');
+  $('#tab-signup').classList.toggle('on', m === 'signup');
+  $('#p2wrap').classList.toggle('hide', m !== 'signup');
+  $('#go').textContent = m === 'login' ? 'Log in' : 'Create account';
+  $('#p').autocomplete = m === 'login' ? 'current-password' : 'new-password';
+  history.replaceState(null, '', m === 'signup' ? '#signup' : location.pathname + location.search);
+}
+$('#tab-login').onclick = () => setMode('login');
+$('#tab-signup').onclick = () => setMode('signup');
+if (location.hash === '#signup' || location.pathname === '/signup') setMode('signup');
+const q = new URLSearchParams(location.search).get('msg'); if (q) $('#msg').textContent = q;
+
+// already logged in? skip ahead
+api('/api/me').then(me => { location.replace(me.role === 'admin' ? '/admin' : '/client'); }).catch(() => {});
+
+$('#form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const username = $('#u').value.trim(), password = $('#p').value;
+  const btn = $('#go'); btn.disabled = true;
+  try {
+    if (mode === 'signup') {
+      if (password !== $('#p2').value) throw new Error('Passwords do not match');
+      await post('/api/auth/signup', { username, password });
+      toast('Account created — logging in…', 'ok');
+    }
+    const r = await post('/api/auth/login', { username, password });
+    location.href = r.role === 'admin' ? '/admin' : '/client';
+  } catch (err) { toast(err.message, 'bad'); btn.disabled = false; }
+});
+</script>
+</body>
+</html>
