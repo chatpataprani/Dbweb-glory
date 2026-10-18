@@ -8,6 +8,8 @@ import json
 import os
 import time
 import hashlib
+import hmac
+import html
 import secrets
 from typing import Dict, List, Any, Optional
 from aiohttp import web
@@ -237,7 +239,7 @@ def _hash_password(pw, salt=None):
 def _verify_password(pw, stored):
     try:
         salt = stored.split('$', 1)[0]
-        return _hash_password(pw, salt) == stored
+        return hmac.compare_digest(_hash_password(pw, salt), stored)
     except Exception:
         return False
 
@@ -1662,11 +1664,13 @@ async def handle_api_logs(request):
     logs = []
     for e in bot_state.logs[-80:]:
         if isinstance(e, dict):
-            t = e.get("time", ""); msg = e.get("message", ""); lv = e.get("level", "info")
+            t = html.escape(str(e.get("time", "")))
+            msg = html.escape(str(e.get("message", "")))
+            lv = e.get("level", "info")
             color = "#34d399" if lv == "success" else ("#f87171" if lv in ("warning", "error") else "#38bdf8")
             logs.append(f'<span style="color:{color}">[{t}] {msg}</span>')
         else:
-            logs.append(str(e))
+            logs.append(html.escape(str(e)))
     return web.json_response({"logs": logs}, status=200)
 
 
