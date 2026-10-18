@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin — {brand}</title>
+<link rel="stylesheet" href="/neo.css">
+</head>
+<body>
+<header class="topbar"><div class="wrap">
+  <a class="brand" href="/"><span class="logo">D</span><span><span data-brand>Dbweb Glory</span> <span class="muted small">Admin</span></span></a>
+  <div class="row"><a class="btn sm" href="/bot">Bot panel</a><a class="btn sm" href="/client">Client view</a><button class="btn sm" onclick="logout()">Log out</button></div>
+</div></header>
+
+<main class="wrap">
+  <div class="tabs" id="tabs">
+    <button class="btn on" data-tab="overview">Overview</button>
+    <button class="btn" data-tab="payments">Payments <span id="pend" class="badge warn hide"></span></button>
+    <button class="btn" data-tab="users">Users</button>
+    <button class="btn" data-tab="coupons">Coupons</button>
+    <button class="btn" data-tab="bots">Bots</button>
+  </div>
+
+  <section id="t-overview" class="tab"><div class="grid g4" id="stats"></div></section>
+
+  <section id="t-payments" class="tab hide">
+    <div class="neo stack"><div class="row between"><h2>UPI orders</h2><div class="row"><select class="input" id="pf" style="width:auto"><option value="submitted">Needs review</option><option value="">All</option><option>approved</option><option>rejected</option><option>created</option><option>cancelled</option></select><button class="btn sm" onclick="loadPayments()">Refresh</button></div></div>
+      <p class="small muted">Check the UTR and amount in your UPI app, then approve. Approving adds the credits to the user.</p>
+      <div class="tablewrap"><table><thead><tr><th>Order</th><th>User</th><th>Credits</th><th>Amount</th><th>UTR</th><th>Status</th><th></th></tr></thead><tbody id="pay-rows"></tbody></table></div></div>
+  </section>
+
+  <section id="t-users" class="tab hide">
+    <div class="neo stack"><div class="row between"><h2>Users</h2><button class="btn sm primary" id="newu">New user</button></div>
+      <input class="input" id="usearch" placeholder="Search username…">
+      <div class="tablewrap"><table><thead><tr><th>User</th><th>Role</th><th>Basic</th><th>Premium</th><th>Joined</th><th></th></tr></thead><tbody id="user-rows"></tbody></table></div></div>
+  </section>
+
+  <section id="t-coupons" class="tab hide">
+    <div class="neo stack"><div class="row between"><h2>Coupons</h2><button class="btn sm primary" id="newc">New coupon</button></div>
+      <div class="tablewrap"><table><thead><tr><th>Code</th><th>Credits</th><th>Created by</th><th>Status</th><th>Used by</th><th></th></tr></thead><tbody id="coupon-rows"></tbody></table></div></div>
+  </section>
+
+  <section id="t-bots" class="tab hide">
+    <div class="grid g2">
+      <div class="neo stack"><h2>Join a guild (all bots)</h2>
+        <input class="input" id="jc" inputmode="numeric" placeholder="Guild ID">
+        <select class="input" id="jr"><option>IND</option><option>BD</option><option>SG</option><option>ID</option><option>TH</option><option>VN</option><option>PK</option><option>ME</option><option>BR</option><option>US</option><option>NA</option><option>SAC</option><option>RU</option><option>TW</option><option>CIS</option></select>
+        <button class="btn primary block" id="join">Send join requests</button></div>
+      <div class="neo stack"><h2>Add bot account</h2>
+        <input class="input" id="bu" placeholder="Guest UID"><input class="input" id="bp" placeholder="Guest password">
+        <button class="btn block" id="addbot">Add account</button></div>
+    </div>
+    <div class="neo stack" style="margin-top:18px"><div class="row between"><h2>Bot accounts</h2><button class="btn sm" onclick="loadBots()">Refresh</button></div>
+      <div class="tablewrap"><table><thead><tr><th>UID</th><th>Name</th><th>Region</th><th>Lvl</th><th>Status</th><th>Matches</th></tr></thead><tbody id="bot-rows"></tbody></table></div></div>
+  </section>
+</main>
+<footer><div class="wrap">Dev contact: <a data-email href="mailto:lumenomore@hotmail.com">lumenomore@hotmail.com</a></div></footer>
+
+<script src="/shared.js"></script>
+<script>
+let ME, USERS = [];
+function showTab(t) {
+  $$('.tab').forEach(s => s.classList.add('hide')); $('#t-' + t).classList.remove('hide');
+  $$('#tabs .btn').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  ({ overview: loadOverview, payments: loadPayments, users: loadUsers, coupons: loadCoupons, bots: loadBots })[t]();
+  history.replaceState(null, '', '#' + t);
+}
+$$('#tabs .btn').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+const tile = (l, v, c) => `<div class="neo stat"><b ${c ? 'style="color:var(--' + c + ')"' : ''}>${v}</b><span>${l}</span></div>`;
+const fail = e => toast(e.message, 'bad');
+
+async function loadOverview() {
+  const o = await api('/api/admin/overview').catch(fail); if (!o) return;
+  $('#stats').innerHTML = tile('Revenue', inr(o.revenue_inr), 'ok') + tile('Pending payments', o.pending_payments, 'gold') + tile('Users', o.total_users) +
+    tile('Bots online', o.bot_online + '/' + o.bot_accounts) + tile('Basic credits out', o.total_basic_credits) + tile('Premium credits out', o.total_premium_credits) +
+    tile('Active coupons', o.active_coupons) + tile('Uptime', Math.floor(o.uptime / 3600) + 'h');
+  const p = $('#pend'); p.textContent = o.pending_payments; p.classList.toggle('hide', !o.pending_payments);
+}
+
+/* payments */
+async function loadPayments() {
+  const rows = await api('/api/admin/payments').catch(fail); if (!rows) return;
+  const f = $('#pf').value, list = f ? rows.filter(r => r.status === f) : rows;
+  $('#pay-rows').innerHTML = list.length ? list.map(o => `<tr>
+    <td class="mono">${esc(o.order_id)}<div class="small muted">${fmtDate(o.created_at)}</div></td><td>${esc(o.username)}</td>
+    <td>${o.basic_credits}B + ${o.premium_credits}P</td><td><b>${inr(o.amount)}</b></td><td class="mono">${esc(o.utr || '—')}</td><td>${badge(o.status)}</td>
+    <td>${o.status === 'submitted' || o.status === 'created' ? `<div class="row" style="flex-wrap:nowrap"><button class="btn sm ok" data-a="approve" data-o="${esc(o.order_id)}">Approve</button><button class="btn sm bad" data-a="reject" data-o="${esc(o.order_id)}">Reject</button></div>` : ''}</td></tr>`).join('')
+    : '<tr><td colspan="7" class="empty">Nothing here</td></tr>';
+  $$('#pay-rows [data-a]').forEach(b => b.onclick = async () => {
+    const o = rows.find(x => x.order_id === b.dataset.o);
+    if (b.dataset.a === 'approve' && !confirm(`Approve ${o.order_id}?\n${inr(o.amount)} → ${o.basic_credits}B + ${o.premium_credits}P for ${o.username}\nUTR ${o.utr || 'not entered'}`)) return;
+    const note = b.dataset.a === 'reject' ? (prompt('Reason (shown to user, optional):') || '') : '';
+    try { await post('/api/admin/payment/resolve', { order_id: o.order_id, action: b.dataset.a, note }); toast('Done', 'ok'); loadPayments(); loadOverview(); } catch (e) { fail(e); }
+  });
+}
+$('#pf').onchange = loadPayments;
+
+/* users */
+async function loadUsers() {
+  USERS = await api('/api/admin/users').catch(fail) || []; renderUsers();
+}
+function renderUsers() {
+  const q = $('#usearch').value.trim().toLowerCase();
+  const rows = USERS.filter(u => !q || u.username.includes(q));
+  $('#user-rows').innerHTML = rows.map(u => `<tr><td><b>${esc(u.username)}</b></td><td>${badge(u.role === 'admin' ? 'active' : 'used').replace(/>(active|used)</, '>' + u.role + '<')}</td>
+    <td>${u.basic_credits}</td><td>${u.premium_credits}</td><td class="small muted">${fmtDate(u.created_at)}</td>
+    <td><div class="row" style="flex-wrap:nowrap"><button class="btn sm" data-u="${esc(u.username)}" data-a="cr">Credits</button><button class="btn sm" data-u="${esc(u.username)}" data-a="role">${u.role === 'admin' ? 'Demote' : 'Make admin'}</button><button class="btn sm bad" data-u="${esc(u.username)}" data-a="del">Delete</button></div></td></tr>`).join('') || '<tr><td colspan="6" class="empty">No users</td></tr>';
+  $$('#user-rows [data-a]').forEach(b => b.onclick = () => userAction(b.dataset.u, b.dataset.a));
+}
+$('#usearch').oninput = renderUsers;
+async function userAction(u, a) {
+  const user = USERS.find(x => x.username === u);
+  try {
+    if (a === 'del') { if (!confirm('Delete ' + u + '?')) return; await post('/api/admin/user/delete', { username: u }); }
+    else if (a === 'role') await post('/api/admin/user/role', { username: u, role: user.role === 'admin' ? 'user' : 'admin' });
+    else {
+      const m = modal(`<div class="stack"><h2>Credits — ${esc(u)}</h2><div class="row" style="flex-wrap:nowrap"><div style="flex:1"><label>Basic</label><input class="input" id="mb" value="0" inputmode="numeric"></div><div style="flex:1"><label>Premium</label><input class="input" id="mp" value="0" inputmode="numeric"></div></div>
+        <div class="row"><button class="btn primary" id="madd">Add (use − to remove)</button><button class="btn" id="mset">Set exact</button></div></div>`);
+      const go = mode => async () => { try { await post('/api/admin/user/credits', { username: u, mode, basic_credits: parseInt($('#mb', m).value) || 0, premium_credits: parseInt($('#mp', m).value) || 0 }); m.remove(); loadUsers(); toast('Updated', 'ok'); } catch (e) { fail(e); } };
+      $('#madd', m).onclick = go('add'); $('#mset', m).onclick = go('set'); return;
+    }
+    loadUsers();
+  } catch (e) { fail(e); }
+}
+$('#newu').onclick = () => {
+  const m = modal(`<div class="stack"><h2>New user</h2><input class="input" id="nu" placeholder="username"><input class="input" id="np" type="text" placeholder="password (6+)">
+    <select class="input" id="nr"><option value="user">user</option><option value="admin">admin</option></select>
+    <div class="row" style="flex-wrap:nowrap"><input class="input" id="nb" value="0" inputmode="numeric" placeholder="basic"><input class="input" id="npr" value="0" inputmode="numeric" placeholder="premium"></div>
+    <button class="btn primary block" id="nok">Create</button></div>`);
+  $('#nok', m).onclick = async () => { try { await post('/api/admin/user/create', { username: $('#nu', m).value, password: $('#np', m).value, role: $('#nr', m).value, basic_credits: parseInt($('#nb', m).value) || 0, premium_credits: parseInt($('#npr', m).value) || 0 }); m.remove(); loadUsers(); toast('User created', 'ok'); } catch (e) { fail(e); } };
+};
+
+/* coupons */
+async function loadCoupons() {
+  const rows = await api('/api/admin/coupons').catch(fail); if (!rows) return;
+  $('#coupon-rows').innerHTML = rows.map(c => `<tr><td class="mono">${esc(c.code)}</td><td>${c.basic_credits}B + ${c.premium_credits}P</td><td>${esc(c.created_by || '')}</td><td>${badge(c.status)}</td><td>${esc(c.used_by || '—')}</td>
+    <td>${c.status === 'active' ? `<button class="btn sm bad" data-c="${esc(c.code)}">Revoke</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="6" class="empty">No coupons</td></tr>';
+  $$('#coupon-rows [data-c]').forEach(b => b.onclick = async () => { try { await post('/api/admin/coupon/revoke', { code: b.dataset.c }); loadCoupons(); } catch (e) { fail(e); } });
+}
+$('#newc').onclick = () => {
+  const m = modal(`<div class="stack"><h2>New coupon</h2><p class="small muted">Credits come out of the chosen user's balance (yours if blank).</p>
+    <input class="input" id="cu" placeholder="from user (blank = me)"><div class="row" style="flex-wrap:nowrap"><input class="input" id="cb" value="1" inputmode="numeric"><input class="input" id="cpp" value="0" inputmode="numeric"></div>
+    <button class="btn primary block" id="cok">Create</button></div>`);
+  $('#cok', m).onclick = async () => { try { const r = await post('/api/admin/coupon/create', { for_user: $('#cu', m).value, basic_credits: parseInt($('#cb', m).value) || 0, premium_credits: parseInt($('#cpp', m).value) || 0 }); m.remove(); toast('Coupon ' + r.coupon.code, 'ok'); copyText(r.coupon.code); loadCoupons(); } catch (e) { fail(e); } };
+};
+
+/* bots */
+async function loadBots() {
+  const rows = await api('/api/admin/bot-accounts').catch(fail); if (!rows) return;
+  $('#bot-rows').innerHTML = rows.map(a => `<tr><td class="mono">${esc(a.uid)}</td><td>${esc(a.nickname)}</td><td>${esc(a.region)}</td><td>${a.level}</td>
+    <td>${badge(a.is_paused ? 'submitted' : (a.status === 'ONLINE' || a.status === 'IN_MATCH' ? 'approved' : 'rejected')).replace(/>[a-z]+</, '>' + (a.is_paused ? 'PAUSED' : esc(a.status)) + '<')}</td><td>${a.matches_played}</td></tr>`).join('') || '<tr><td colspan="6" class="empty">No bot accounts loaded</td></tr>';
+}
+$('#join').onclick = async () => { try { const r = await post('/api/admin/join-clan', { clan_id: $('#jc').value.trim(), region: $('#jr').value }); toast(`Joined ${r.success ?? 0}/${r.total ?? 0}`, 'ok'); } catch (e) { fail(e); } };
+$('#addbot').onclick = async () => { try { const r = await post('/api/account/add', { uid: $('#bu').value.trim(), password: $('#bp').value.trim() }); if (r.status === 'ok') { toast('Added', 'ok'); $('#bu').value = $('#bp').value = ''; loadBots(); } else toast(r.error || 'Failed', 'bad'); } catch (e) { fail(e); } };
+
+(async () => {
+  await loadConfig(); ME = await requireUser(true); if (!ME) return;
+  const h = location.hash.slice(1); showTab(['overview', 'payments', 'users', 'coupons', 'bots'].includes(h) ? h : 'overview');
+})();
+</script>
+</body>
+</html>
