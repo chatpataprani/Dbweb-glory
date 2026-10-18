@@ -1,0 +1,21 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# Persistent runtime data / credentials
+users.json
+payments.json
+coupons.json
+accounts.json
+token_cache.json
+devices.json
+guild_cache.json
+*.tmp
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
