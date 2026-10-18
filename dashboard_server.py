@@ -303,9 +303,20 @@ def _seed_admin():
             print(f"[SEED] Admin '{name}' created (password from ADMIN_PASSWORD)")
         else:
             print(f"[SEED] Admin '{name}' created. One-time password: {pw}  (set ADMIN_PASSWORD to choose your own)")
-    elif users[name].get('role') != 'admin':
-        users[name]['role'] = 'admin'
-        _save_users(users)
+    else:
+        changed = False
+        if users[name].get('role') != 'admin':
+            users[name]['role'] = 'admin'
+            changed = True
+        # An explicitly configured password is authoritative, including for
+        # an existing persisted admin whose old one-time password was lost.
+        if ADMIN_PASSWORD and not _verify_password(ADMIN_PASSWORD, users[name].get('password_hash', '')):
+            users[name]['password_hash'] = _hash_password(ADMIN_PASSWORD)
+            changed = True
+        if changed:
+            _save_users(users)
+        if ADMIN_PASSWORD:
+            print(f"[SEED] Admin '{name}' is ready (configured password applied)")
 
 
 # ═══════════════════════════════════════════════════════════════════
