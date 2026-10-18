@@ -37,7 +37,7 @@ from clan_join import join_clan_bulk, join_clan_single, fetch_clan_info
 
 # ═══════════════════════════ CONFIG ═══════════════════════════
 WEB_HOST = "0.0.0.0"
-WEB_PORT = int(os.environ.get('PORT', '20333'))
+WEB_PORT = int(os.environ.get('PORT') or os.environ.get('SERVER_PORT') or '20333')
 
 DRIFT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 ACCOUNTS_FILE = "accounts.json"
