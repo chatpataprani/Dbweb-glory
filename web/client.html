@@ -41,6 +41,16 @@
         </select></div>
       <p class="small muted" id="cost"></p>
       <button class="btn primary block" id="launch">Launch</button>
+      <div id="launch-status-card" class="neo-in stack hide" aria-live="polite">
+        <h3>Guild join results</h3>
+        <p class="small muted" id="launch-status-message">Waiting for launch…</p>
+        <div class="grid g3">
+          <div><div class="small muted">Attempted</div><b id="launch-total">0</b></div>
+          <div><div class="small muted">Successful</div><b id="launch-success">0</b></div>
+          <div><div class="small muted">Failed</div><b id="launch-failed">0</b></div>
+        </div>
+        <div id="launch-account-results" class="list"></div>
+      </div>
     </div>
   </section>
 
@@ -122,15 +132,55 @@ function updateCost() {
 }
 $('#region').onchange = updateCost;
 
+let launchStatusTimer = null;
+function renderLaunchStatus(s) {
+  const card = $('#launch-status-card');
+  card.classList.remove('hide');
+  $('#launch-status-message').textContent =
+    s.status === 'processing' ? 'Guild join is in progress…' :
+    s.status === 'error' ? ('Could not complete guild join: ' + (s.error || 'Unknown error')) :
+    s.status === 'completed' ? (s.error ? 'Finished with a warning: ' + s.error : 'Guild join attempt finished.') :
+    'No launch has been run yet.';
+  $('#launch-total').textContent = Number(s.total || 0);
+  $('#launch-success').textContent = Number(s.success || 0);
+  $('#launch-failed').textContent = Number(s.failed || 0);
+  const rows = Array.isArray(s.results) ? s.results : [];
+  $('#launch-account-results').innerHTML = rows.length ? rows.map(a => {
+    const label = a.nickname || a.account_id || 'Account';
+    const result = a.success ? 'Joined successfully' : ('Failed: ' + (a.error || 'Unknown error'));
+    return '<div class="neo sm item"><div><b>' + esc(String(label)) + '</b><div class="small muted">' + esc(result) + '</div></div></div>';
+  }).join('') : (s.status === 'completed' && s.total === 0
+    ? '<div class="empty">No eligible token accounts were found for this region.</div>' : '');
+}
+async function pollLaunchStatus() {
+  try {
+    const s = await api('/api/client/launch-status');
+    renderLaunchStatus(s);
+    if (s.status !== 'processing' && launchStatusTimer) {
+      clearInterval(launchStatusTimer); launchStatusTimer = null;
+    }
+  } catch (e) {
+    $('#launch-status-message').textContent = 'Could not load launch status. Please refresh and try again.';
+  }
+}
 $('#launch').onclick = async () => {
   const clan_id = $('#clan').value.trim(), region = $('#region').value;
   if (!/^\d+$/.test(clan_id)) return toast('Enter a numeric guild ID', 'bad');
   const btn = $('#launch'); btn.disabled = true;
+  $('#launch-status-card').classList.remove('hide');
+  $('#launch-status-message').textContent = 'Starting guild join…';
+  $('#launch-total').textContent = '0';
+  $('#launch-success').textContent = '0';
+  $('#launch-failed').textContent = '0';
+  $('#launch-account-results').innerHTML = '';
   try {
     const r = await post('/api/client/launch', { clan_id, region });
     const key = r.credit_type === 'premium' ? 'premium_credits' : 'basic_credits';
     me[key] = r.remaining_credits; setCredits(me.basic_credits, me.premium_credits);
     toast(r.message || 'Launched!', 'ok');
+    if (launchStatusTimer) clearInterval(launchStatusTimer);
+    await pollLaunchStatus();
+    launchStatusTimer = setInterval(pollLaunchStatus, 2000);
   } catch (e) { toast(e.message, 'bad'); }
   btn.disabled = false;
 };
