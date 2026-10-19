@@ -1000,6 +1000,17 @@ async def handle_client_launch(request):
         "launched_at": time.time(),
         "joined": False
     }
+    _launch_statuses[sess['username']] = {
+        "status": "processing",
+        "clan_id": clan_id,
+        "region": region,
+        "total": 0,
+        "success": 0,
+        "failed": 0,
+        "results": [],
+        "error": "",
+        "updated_at": time.time()
+    }
     bot_state.log(f"🏰 Group launched: clan {clan_id} region {region} by {sess['username']}", "success")
 
     asyncio.create_task(_async_join_group(clan_id, region, sess['username']))
@@ -1012,21 +1023,51 @@ async def handle_client_launch(request):
     })
 
 
+async def handle_client_launch_status(request):
+    sess = _get_session(request)
+    if not sess:
+        return web.json_response({"error": "Not authenticated"}, status=401)
+    status = _launch_statuses.get(sess["username"])
+    if not status:
+        return web.json_response({"status": "idle", "total": 0, "success": 0, "failed": 0, "results": []})
+    return web.json_response(dict(status))
+
+
 async def _async_join_group(clan_id, region, launched_by):
+    status = _launch_statuses.setdefault(launched_by, {})
     try:
         from clan_join import join_clan_bulk
         res = await join_clan_bulk(clan_id, region)
-        joined = res.get('success', 0)
-        total = res.get('total', 0)
+        joined = int(res.get('success', 0) or 0)
+        failed = int(res.get('failed', 0) or 0)
+        total = int(res.get('total', joined + failed) or 0)
+        status.update({
+            "status": "completed",
+            "clan_id": str(clan_id),
+            "region": region,
+            "total": total,
+            "success": joined,
+            "failed": failed,
+            "results": res.get("results", []),
+            "error": res.get("error", ""),
+            "updated_at": time.time()
+        })
         if joined > 0:
             entry = bot_state.pending_clans.get(region)
-            if entry:
+            if entry and entry.get("clan_id") == str(clan_id):
                 entry['joined'] = True
                 entry['joined_at'] = time.time()
-            bot_state.log(f"✅ {joined}/{total} bots joined clan {clan_id} ({region})", "success")
+            bot_state.log(f"Guild {clan_id} ({region}): {joined} joined, {failed} failed, {total} attempted", "success")
         else:
-            bot_state.log(f"❌ Clan join failed: {res.get('error', 'no accounts')}", "warning")
+            bot_state.log(f"Guild join failed for {clan_id} ({region}): {res.get('error', 'no accounts')}; {failed} failed of {total} attempted", "warning")
     except Exception as e:
+        status.update({
+            "status": "error",
+            "clan_id": str(clan_id),
+            "region": region,
+            "error": str(e),
+            "updated_at": time.time()
+        })
         bot_state.log(f"❌ Clan join error: {e}", "error")
 
 
@@ -1455,6 +1496,9 @@ class BotState:
 
 bot_state = BotState()
 
+# Latest guild-launch result per signed-in user (in-memory; refreshed by polling).
+_launch_statuses: Dict[str, Dict[str, Any]] = {}
+
 
 # ═══════════════════════════════════════════════════════════════════
 #  BOT APIs
@@ -1778,6 +1822,7 @@ async def start_web_dashboard(host="0.0.0.0", port=5000):
 
     # ⭐ Glory Launch
     app.router.add_post("/api/client/launch", handle_client_launch)
+    app.router.add_get ("/api/client/launch-status", handle_client_launch_status)
 
     # Stubs
     app.router.add_get("/api/pricing",             handle_pricing)
